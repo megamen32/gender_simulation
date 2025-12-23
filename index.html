@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Partner Market Simulator (A↔B)</title>
+  <title>Partner Market Simulator (муж↔жен)</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root { --bg:#0b0d10; --card:#12151b; --text:#e7eef7; --muted:#9fb0c3; --line:#253041; }
@@ -44,7 +44,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Симулятор “рынка партнёров” (две группы A↔B)</h1>
+  <h1>Симулятор “рынка партнёров” (две группы муж↔жен)</h1>
 
   <div class="grid">
     <div class="card">
@@ -54,7 +54,7 @@
           <input id="N" type="number" min="100" max="30000" step="100" value="10000" />
         </div>
         <div>
-          <label>Доля группы A (%)</label>
+          <label>Доля муж (%)</label>
           <input id="pA" type="number" min="0" max="100" step="0.1" value="50" />
         </div>
       </div>
@@ -62,11 +62,11 @@
       <label>Желаемое число уникальных партнёров за жизнь</label>
       <div class="row">
         <div>
-          <label>Группа A (kA)</label>
+          <label>муж (kA)</label>
           <input id="kA" type="number" min="0" max="1000" step="1" value="20" />
         </div>
         <div>
-          <label>Группа B (kB)</label>
+          <label>жен (kB)</label>
           <input id="kB" type="number" min="0" max="1000" step="1" value="3" />
         </div>
       </div>
@@ -100,11 +100,11 @@
           <div id="keff" class="v">—</div>
         </div>
         <div class="box">
-          <div class="t">Всего “слотов партнёров” (A vs B)</div>
+          <div class="t">Всего “слотов партнёров” (муж vs жен)</div>
           <div id="caps" class="v">—</div>
         </div>
         <div class="box">
-          <div class="t">Макс. число уникальных пар (A↔B)</div>
+          <div class="t">Макс. число уникальных пар (муж↔жен)</div>
           <div id="pairs" class="v">—</div>
         </div>
         <div class="box">
@@ -118,10 +118,10 @@
       </div>
 
       <div class="note">
-        Интерпретация: каждая новая уникальная пара “съедает” по 1 слоту у участника A и у участника B.
+        Интерпретация: каждая новая уникальная пара “съедает” по 1 слоту у участника муж и у участника жен.
         Рынок заканчивается в момент, когда у одной из групп суммарно заканчиваются слоты.
         <br><br>
-        Важно: это игрушечная математика (две группы, только A↔B), не про реальную демографию.
+        Важно: это игрушечная математика (две группы, только муж↔жен), не про реальную демографию.
       </div>
     </div>
 
@@ -163,7 +163,7 @@
 
     const warn = [];
     if(nA === 0 || nB === 0){
-      warn.push("Одна из групп имеет нулевой размер — пары A↔B невозможны.");
+      warn.push("Одна из групп имеет нулевой размер — пары муж↔жен невозможны.");
     }
 
     // уникальные партнёры: максимум = размер другой группы
@@ -179,8 +179,8 @@
 
     let limiting = "—";
     if(P === 0) limiting = "Никто (пар нет)";
-    else if(capA < capB) limiting = "Группа A (быстрее закончится B-спрос)";
-    else if(capB < capA) limiting = "Группа B (быстрее закончится A-спрос)";
+    else if(capA < capB) limiting = "муж (быстрее закончится жен-спрос)";
+    else if(capB < capA) limiting = "жен (быстрее закончится муж-спрос)";
     else limiting = "Баланс (теоретически хватает всем)";
 
     // условие полного удовлетворения: capA == capB
@@ -197,8 +197,8 @@
       capChart = new Chart(el("capChart"), {
         type: "line",
         data: { labels: [], datasets: [
-          { label: "Остаток слотов (A)", data: [], borderWidth: 2, pointRadius: 0, tension: 0.15 },
-          { label: "Остаток слотов (B)", data: [], borderWidth: 2, pointRadius: 0, tension: 0.15 },
+          { label: "Остаток слотов (муж)", data: [], borderWidth: 2, pointRadius: 0, tension: 0.15 },
+          { label: "Остаток слотов (жен)", data: [], borderWidth: 2, pointRadius: 0, tension: 0.15 },
         ]},
         options: {
           responsive: true,
@@ -206,7 +206,7 @@
           animation: false,
           plugins: { legend: { labels: { color: "#e7eef7" } } },
           scales: {
-            x: { ticks: { color: "#9fb0c3" }, grid: { color: "#253041" }, title: { display:true, text:"Число уникальных пар (A↔B)", color:"#9fb0c3" } },
+            x: { ticks: { color: "#9fb0c3" }, grid: { color: "#253041" }, title: { display:true, text:"Число уникальных пар (муж↔жен)", color:"#9fb0c3" } },
             y: { ticks: { color: "#9fb0c3" }, grid: { color: "#253041" }, title: { display:true, text:"Остаток суммарных слотов", color:"#9fb0c3" } }
           }
         }
@@ -216,8 +216,8 @@
       seekChart = new Chart(el("seekChart"), {
         type: "line",
         data: { labels: [], datasets: [
-          { label: "Ищут партнёра (A)", data: [], borderWidth: 2, pointRadius: 0, tension: 0.15 },
-          { label: "Ищут партнёра (B)", data: [], borderWidth: 2, pointRadius: 0, tension: 0.15 },
+          { label: "Ищут партнёра (муж)", data: [], borderWidth: 2, pointRadius: 0, tension: 0.15 },
+          { label: "Ищут партнёра (жен)", data: [], borderWidth: 2, pointRadius: 0, tension: 0.15 },
         ]},
         options: {
           responsive: true,
@@ -225,7 +225,7 @@
           animation: false,
           plugins: { legend: { labels: { color: "#e7eef7" } } },
           scales: {
-            x: { ticks: { color: "#9fb0c3" }, grid: { color: "#253041" }, title: { display:true, text:"Число уникальных пар (A↔B)", color:"#9fb0c3" } },
+            x: { ticks: { color: "#9fb0c3" }, grid: { color: "#253041" }, title: { display:true, text:"Число уникальных пар (муж↔жен)", color:"#9fb0c3" } },
             y: { ticks: { color: "#9fb0c3" }, grid: { color: "#253041" }, title: { display:true, text:"Число людей, ещё не достигших k", color:"#9fb0c3" } }
           }
         }
@@ -388,11 +388,11 @@
       warnBox.textContent = "";
     }
 
-    el("sizes").textContent = `A: ${fmtInt(a.nA)}  |  B: ${fmtInt(a.nB)}`;
+    el("sizes").textContent = `муж: ${fmtInt(a.nA)}  |  жен: ${fmtInt(a.nB)}`;
     el("keff").textContent = `kA_eff: ${fmtInt(a.kAeff)}  |  kB_eff: ${fmtInt(a.kBeff)}`;
     el("caps").textContent  = `capA: ${fmtInt(a.capA)}  |  capB: ${fmtInt(a.capB)}`;
     el("pairs").textContent = fmtInt(a.P);
-    el("avg").textContent   = `A: ${fmt2(a.avgA)}  |  B: ${fmt2(a.avgB)}`;
+    el("avg").textContent   = `муж: ${fmt2(a.avgA)}  |  жен: ${fmt2(a.avgB)}`;
     el("lim").textContent   = a.limiting;
 
     updateCapChart(a);
