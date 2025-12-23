@@ -441,7 +441,7 @@
 
   // авто-пересчёт при изменениях
   ["N","pA","kA","kB","doSim","runs"].forEach(id => {
-    el(id).addEventListener("change", () => render());
+    el(id).addEventListener("change", () => { render(); simulate(); });
   });
 
   render();
