@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Partner Market Simulator (A↔B)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root { --bg:#0b0d10; --card:#12151b; --text:#e7eef7; --muted:#9fb0c3; --line:#253041; }
+    * { box-sizing: border-box; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    body { margin:0; background:var(--bg); color:var(--text); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 18px; }
+    h1 { font-size: 18px; margin: 0 0 10px; font-weight: 700; }
+    .grid { display:grid; grid-template-columns: 360px 1fr; gap: 14px; align-items:start; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius: 14px; padding: 14px; }
+    .row { display:flex; gap:10px; }
+    .row > * { flex:1; }
+    label { display:block; font-size: 12px; color: var(--muted); margin: 8px 0 6px; }
+    input[type="number"], input[type="range"] {
+      width:100%;
+    }
+    input[type="number"]{
+      background:#0f131a; color:var(--text); border:1px solid var(--line);
+      padding: 10px; border-radius: 10px; outline:none;
+    }
+    input[type="range"] { accent-color: #9fb0c3; }
+    .kpi { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .kpi .box { border:1px solid var(--line); border-radius: 12px; padding: 10px; background:#0f131a; }
+    .kpi .t { font-size: 11px; color: var(--muted); }
+    .kpi .v { font-size: 14px; margin-top: 4px; font-weight: 700; }
+    .btns { display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap; }
+    button{
+      background:#0f131a; color:var(--text); border:1px solid var(--line);
+      padding:10px 12px; border-radius: 12px; cursor:pointer;
+    }
+    button:hover { border-color:#3b4a61; }
+    .note { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.35; }
+    .chartWrap { height: 380px; }
+    .chartWrap.small { height: 320px; margin-top: 12px; }
+    .warn { margin-top:10px; padding:10px; border-radius:12px; border:1px solid #4a2b2b; background:#1a0f10; color:#ffd6d6; font-size:12px; display:none; }
+    .muted { color:var(--muted); font-size:12px; }
+    @media (max-width: 980px){ .grid{ grid-template-columns: 1fr; } .chartWrap{ height: 320px; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Симулятор “рынка партнёров” (две группы A↔B)</h1>
+
+  <div class="grid">
+    <div class="card">
+      <div class="row">
+        <div>
+          <label>Размер популяции (N)</label>
+          <input id="N" type="number" min="100" max="30000" step="100" value="10000" />
+        </div>
+        <div>
+          <label>Доля группы A (%)</label>
+          <input id="pA" type="number" min="0" max="100" step="0.1" value="50" />
+        </div>
+      </div>
+
+      <label>Желаемое число уникальных партнёров за жизнь</label>
+      <div class="row">
+        <div>
+          <label>Группа A (kA)</label>
+          <input id="kA" type="number" min="0" max="1000" step="1" value="20" />
+        </div>
+        <div>
+          <label>Группа B (kB)</label>
+          <input id="kB" type="number" min="0" max="1000" step="1" value="3" />
+        </div>
+      </div>
+
+      <label style="margin-top:12px;">Симуляция (случайный подбор пар, с запретом повторять одну и ту же пару)</label>
+      <div class="row" style="align-items:center;">
+        <div style="flex:0 0 auto;">
+          <input id="doSim" type="checkbox" checked />
+          <span class="muted">включить</span>
+        </div>
+        <div>
+          <label>Кол-во прогонов (усреднение)</label>
+          <input id="runs" type="number" min="1" max="50" step="1" value="5" />
+        </div>
+      </div>
+
+      <div class="btns">
+        <button id="recalc">Пересчитать</button>
+        <button id="sim">Запустить симуляцию</button>
+      </div>
+
+      <div id="warn" class="warn"></div>
+
+      <div class="kpi">
+        <div class="box">
+          <div class="t">Размеры групп</div>
+          <div id="sizes" class="v">—</div>
+        </div>
+        <div class="box">
+          <div class="t">Эффективные k (не больше размера другой группы)</div>
+          <div id="keff" class="v">—</div>
+        </div>
+        <div class="box">
+          <div class="t">Всего “слотов партнёров” (A vs B)</div>
+          <div id="caps" class="v">—</div>
+        </div>
+        <div class="box">
+          <div class="t">Макс. число уникальных пар (A↔B)</div>
+          <div id="pairs" class="v">—</div>
+        </div>
+        <div class="box">
+          <div class="t">Среднее реально достижимое (партнёров/чел)</div>
+          <div id="avg" class="v">—</div>
+        </div>
+        <div class="box">
+          <div class="t">Кто “заканчивается” первым</div>
+          <div id="lim" class="v">—</div>
+        </div>
+      </div>
+
+      <div class="note">
+        Интерпретация: каждая новая уникальная пара “съедает” по 1 слоту у участника A и у участника B.
+        Рынок заканчивается в момент, когда у одной из групп суммарно заканчиваются слоты.
+        <br><br>
+        Важно: это игрушечная математика (две группы, только A↔B), не про реальную демографию.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="chartWrap">
+        <canvas id="capChart"></canvas>
+      </div>
+      <div class="chartWrap small">
+        <canvas id="seekChart"></canvas>
+      </div>
+      <div class="note muted">
+        Верхний график: остаток суммарных “слотов партнёров” по мере образования уникальных пар.<br>
+        Нижний график (симуляция): сколько людей в каждой группе ещё “ищут” (не достигли своего k).
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const el = (id) => document.getElementById(id);
+
+  function clamp(x, a, b){ return Math.max(a, Math.min(b, x)); }
+  function fmtInt(x){ return Math.round(x).toLocaleString("ru-RU"); }
+  function fmt2(x){ return (Math.round(x*100)/100).toLocaleString("ru-RU"); }
+
+  function getParams(){
+    const N  = clamp(parseInt(el("N").value || "0", 10), 100, 30000);
+    const pA = clamp(parseFloat(el("pA").value || "0"), 0, 100);
+    const kA = clamp(parseInt(el("kA").value || "0", 10), 0, 1000);
+    const kB = clamp(parseInt(el("kB").value || "0", 10), 0, 1000);
+    const runs = clamp(parseInt(el("runs").value || "1", 10), 1, 50);
+    const doSim = !!el("doSim").checked;
+    return { N, pA, kA, kB, runs, doSim };
+  }
+
+  function analytics({N, pA, kA, kB}){
+    const nA = Math.round(N * (pA/100));
+    const nB = N - nA;
+
+    const warn = [];
+    if(nA === 0 || nB === 0){
+      warn.push("Одна из групп имеет нулевой размер — пары A↔B невозможны.");
+    }
+
+    // уникальные партнёры: максимум = размер другой группы
+    const kAeff = Math.min(kA, nB);
+    const kBeff = Math.min(kB, nA);
+
+    const capA = nA * kAeff; // суммарные "слоты" уникальных партнёров
+    const capB = nB * kBeff;
+
+    const P = Math.min(capA, capB); // максимум уникальных пар
+    const avgA = (nA > 0) ? (P / nA) : 0;
+    const avgB = (nB > 0) ? (P / nB) : 0;
+
+    let limiting = "—";
+    if(P === 0) limiting = "Никто (пар нет)";
+    else if(capA < capB) limiting = "Группа A (быстрее закончится B-спрос)";
+    else if(capB < capA) limiting = "Группа B (быстрее закончится A-спрос)";
+    else limiting = "Баланс (теоретически хватает всем)";
+
+    // условие полного удовлетворения: capA == capB
+    const balanced = (capA === capB && P > 0);
+
+    return { nA, nB, kAeff, kBeff, capA, capB, P, avgA, avgB, limiting, balanced, warn };
+  }
+
+  // --- Charts
+  let capChart, seekChart;
+
+  function ensureCharts(){
+    if(!capChart){
+      capChart = new Chart(el("capChart"), {
+        type: "line",
+        data: { labels: [], datasets: [
+          { label: "Остаток слотов (A)", data: [], borderWidth: 2, pointRadius: 0, tension: 0.15 },
+          { label: "Остаток слотов (B)", data: [], borderWidth: 2, pointRadius: 0, tension: 0.15 },
+        ]},
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: { legend: { labels: { color: "#e7eef7" } } },
+          scales: {
+            x: { ticks: { color: "#9fb0c3" }, grid: { color: "#253041" }, title: { display:true, text:"Число уникальных пар (A↔B)", color:"#9fb0c3" } },
+            y: { ticks: { color: "#9fb0c3" }, grid: { color: "#253041" }, title: { display:true, text:"Остаток суммарных слотов", color:"#9fb0c3" } }
+          }
+        }
+      });
+    }
+    if(!seekChart){
+      seekChart = new Chart(el("seekChart"), {
+        type: "line",
+        data: { labels: [], datasets: [
+          { label: "Ищут партнёра (A)", data: [], borderWidth: 2, pointRadius: 0, tension: 0.15 },
+          { label: "Ищут партнёра (B)", data: [], borderWidth: 2, pointRadius: 0, tension: 0.15 },
+        ]},
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: { legend: { labels: { color: "#e7eef7" } } },
+          scales: {
+            x: { ticks: { color: "#9fb0c3" }, grid: { color: "#253041" }, title: { display:true, text:"Число уникальных пар (A↔B)", color:"#9fb0c3" } },
+            y: { ticks: { color: "#9fb0c3" }, grid: { color: "#253041" }, title: { display:true, text:"Число людей, ещё не достигших k", color:"#9fb0c3" } }
+          }
+        }
+      });
+    }
+  }
+
+  function updateCapChart(a){
+    ensureCharts();
+    const points = 200;
+    const P = a.P;
+    const labels = [];
+    const dataA = [];
+    const dataB = [];
+
+    if(P === 0){
+      capChart.data.labels = ["0"];
+      capChart.data.datasets[0].data = [a.capA];
+      capChart.data.datasets[1].data = [a.capB];
+      capChart.update();
+      return;
+    }
+
+    for(let i=0;i<=points;i++){
+      const x = Math.round(P * (i/points));
+      labels.push(fmtInt(x));
+      dataA.push(a.capA - x);
+      dataB.push(a.capB - x);
+    }
+    capChart.data.labels = labels;
+    capChart.data.datasets[0].data = dataA;
+    capChart.data.datasets[1].data = dataB;
+    capChart.update();
+  }
+
+  function clearSeekChart(){
+    ensureCharts();
+    seekChart.data.labels = ["0"];
+    seekChart.data.datasets[0].data = [0];
+    seekChart.data.datasets[1].data = [0];
+    seekChart.update();
+  }
+
+  // --- Simulation: random unique pairs until one group reaches its quotas for everyone (или рынок упирается в лимит)
+  function runOneSim(nA, nB, kAeff, kBeff, sampleTargetPoints=350){
+    const countsA = new Uint16Array(nA);
+    const countsB = new Uint16Array(nB);
+
+    const activeA = new Array(nA);
+    const activeB = new Array(nB);
+    for(let i=0;i<nA;i++) activeA[i]=i;
+    for(let j=0;j<nB;j++) activeB[j]=j;
+
+    const usedPairs = new Set();
+
+    const capA = nA * kAeff;
+    const capB = nB * kBeff;
+    const P = Math.min(capA, capB);
+
+    // сколько точек хотим на график
+    const sampleEvery = Math.max(1, Math.floor(P / sampleTargetPoints));
+
+    const xs = [];
+    const seekersA = [];
+    const seekersB = [];
+
+    let pairs = 0;
+    let attempts = 0;
+    const maxAttempts = Math.max(100000, P * 30); // защита от зацикливания
+
+    // начальная точка
+    xs.push(0);
+    seekersA.push(activeA.length);
+    seekersB.push(activeB.length);
+
+    while(activeA.length > 0 && activeB.length > 0 && pairs < P){
+      attempts++;
+      if(attempts > maxAttempts) break;
+
+      const aiPos = (Math.random() * activeA.length) | 0;
+      const biPos = (Math.random() * activeB.length) | 0;
+      const a = activeA[aiPos];
+      const b = activeB[biPos];
+
+      const key = a * nB + b; // уникальность пары (a,b)
+      if(usedPairs.has(key)) continue;
+      usedPairs.add(key);
+
+      pairs++;
+      const ca = ++countsA[a];
+      const cb = ++countsB[b];
+
+      if(ca >= kAeff){
+        activeA[aiPos] = activeA[activeA.length - 1];
+        activeA.pop();
+      }
+      if(cb >= kBeff){
+        activeB[biPos] = activeB[activeB.length - 1];
+        activeB.pop();
+      }
+
+      if(pairs % sampleEvery === 0){
+        xs.push(pairs);
+        seekersA.push(activeA.length);
+        seekersB.push(activeB.length);
+      }
+    }
+
+    // финальная точка
+    if(xs[xs.length-1] !== pairs){
+      xs.push(pairs);
+      seekersA.push(activeA.length);
+      seekersB.push(activeB.length);
+    }
+
+    return { pairs, xs, seekersA, seekersB, brokeByAttempts: attempts > maxAttempts };
+  }
+
+  function averageSeries(seriesList){
+    // выравниваем по минимальной длине (проще, без интерполяции)
+    const L = Math.min(...seriesList.map(s => s.xs.length));
+    const xs = seriesList[0].xs.slice(0, L);
+    const a = new Array(L).fill(0);
+    const b = new Array(L).fill(0);
+    for(const s of seriesList){
+      for(let i=0;i<L;i++){
+        a[i] += s.seekersA[i];
+        b[i] += s.seekersB[i];
+      }
+    }
+    for(let i=0;i<L;i++){
+      a[i] /= seriesList.length;
+      b[i] /= seriesList.length;
+    }
+    return { xs, seekersA: a, seekersB: b };
+  }
+
+  function updateSeekChart(avg){
+    ensureCharts();
+    seekChart.data.labels = avg.xs.map(x => fmtInt(x));
+    seekChart.data.datasets[0].data = avg.seekersA;
+    seekChart.data.datasets[1].data = avg.seekersB;
+    seekChart.update();
+  }
+
+  function render(){
+    const p = getParams();
+    // нормализуем N обратно в инпут (если ввели вне диапазона)
+    el("N").value = p.N;
+
+    const a = analytics(p);
+
+    // warnings
+    const warnBox = el("warn");
+    if(a.warn.length){
+      warnBox.style.display = "block";
+      warnBox.textContent = a.warn.join(" ");
+    } else {
+      warnBox.style.display = "none";
+      warnBox.textContent = "";
+    }
+
+    el("sizes").textContent = `A: ${fmtInt(a.nA)}  |  B: ${fmtInt(a.nB)}`;
+    el("keff").textContent = `kA_eff: ${fmtInt(a.kAeff)}  |  kB_eff: ${fmtInt(a.kBeff)}`;
+    el("caps").textContent  = `capA: ${fmtInt(a.capA)}  |  capB: ${fmtInt(a.capB)}`;
+    el("pairs").textContent = fmtInt(a.P);
+    el("avg").textContent   = `A: ${fmt2(a.avgA)}  |  B: ${fmt2(a.avgB)}`;
+    el("lim").textContent   = a.limiting;
+
+    updateCapChart(a);
+
+    if(!p.doSim){
+      clearSeekChart();
+    }
+  }
+
+  async function simulate(){
+    const p = getParams();
+    const a = analytics(p);
+    ensureCharts();
+
+    const warnBox = el("warn");
+    if(a.P === 0 || a.nA === 0 || a.nB === 0){
+      warnBox.style.display = "block";
+      warnBox.textContent = "Симуляция невозможна: нет пар (одна группа пустая или P=0).";
+      return;
+    }
+
+    const runs = p.runs;
+    const sims = [];
+    let broke = 0;
+
+    for(let r=0;r<runs;r++){
+      const s = runOneSim(a.nA, a.nB, a.kAeff, a.kBeff, 350);
+      sims.push(s);
+      if(s.brokeByAttempts) broke++;
+    }
+
+    const avg = averageSeries(sims);
+    updateSeekChart(avg);
+
+    if(broke > 0){
+      warnBox.style.display = "block";
+      warnBox.textContent = `В ${broke}/${runs} прогонов симуляция упёрлась в лимит попыток (редкий случай при экстремальных параметрах/малых группах). Аналитика сверху остаётся корректной как максимум по слотам.`;
+    } else {
+      warnBox.style.display = "none";
+      warnBox.textContent = "";
+    }
+  }
+
+  el("recalc").addEventListener("click", () => render());
+  el("sim").addEventListener("click", () => simulate());
+
+  // авто-пересчёт при изменениях
+  ["N","pA","kA","kB","doSim","runs"].forEach(id => {
+    el(id).addEventListener("change", () => render());
+  });
+
+  render();
+  simulate();
+</script>
+</body>
+</html>
